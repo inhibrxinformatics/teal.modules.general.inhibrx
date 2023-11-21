@@ -1,0 +1,43 @@
+url: https://insightsengineering.github.io/teal.modules.general
+
+template:
+  package: nesttemplate
+
+navbar:
+  structure:
+    left: [intro, reference, articles, tutorials, news, reports]
+    right: [search, github]
+  components:
+    reports:
+      text: Reports
+      menu:
+      - text: Coverage report
+        href: coverage-report/
+      - text: Unit test report
+        href: unit-test-report/
+    github:
+      icon: fa-github
+      href: https://github.com/insightsengineering/teal.modules.general
+
+reference:
+  - title:
+    contents:
+      - teal.modules.general
+
+  - title: General functionality modules
+    contents:
+      - matches('tm_[a-z][a-z]')
+
+  - title: Modules for tables
+    contents:
+      - starts_with('tm_t_')
+
+  - title: Modules for plots
+    contents:
+      - starts_with('tm_g_')
+      - starts_with('tm_a_')
+
+  - title: Utilities functions
+    contents:
+      - add_facet_labels
+      - get_scatterplotmatrix_stats

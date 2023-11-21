@@ -1,0 +1,78 @@
+Type: Package
+Package: teal.modules.general
+Title: General Modules to Add to a `teal` Application
+Version: 0.2.16
+Date: 2023-08-11
+Authors@R: c(
+    person("Dawid", "Kaledkowski", , "dawid.kaledkowski@roche.com", role = c("aut", "cre")),
+    person("Pawel", "Rucki", , "pawel.rucki@roche.com", role = "aut"),
+    person("Mahmoud", "Hallal", , "mahmoud.hallal@roche.com", role = "aut"),
+    person("Ondrej", "Slama", , "ondrej.slama@roche.com", role = "ctb"),
+    person("Maciej", "Nasinski", role = "aut"),
+    person("Konrad", "Pagacz", role = "aut"),
+    person("Nikolas", "Burkoff", role = "aut"),
+    person("F. Hoffmann-La Roche AG", role = c("cph", "fnd"))
+  )
+Description: General Purpose Teal Modules.
+License: Apache License 2.0 | file LICENSE
+Depends:
+    ggmosaic (>= 0.3.0),
+    ggplot2,
+    R (>= 3.6),
+    shiny,
+    shinyTree,
+    teal (>= 0.14.0)
+Imports:
+    checkmate,
+    dplyr,
+    DT,
+    forcats (>= 1.0.0),
+    grid,
+    logger (>= 0.2.0),
+    magrittr,
+    scales,
+    shinyjs,
+    shinyvalidate,
+    shinyWidgets,
+    stats,
+    stringr,
+    teal.code (>= 0.4.0),
+    teal.logger (>= 0.1.1),
+    teal.reporter (>= 0.2.0),
+    teal.slice (>= 0.4.0),
+    teal.transform (>= 0.4.0),
+    teal.widgets (>= 0.4.0),
+    tern (>= 0.7.10),
+    tibble,
+    tidyr,
+    tidyselect,
+    utils
+Suggests:
+    broom,
+    colourpicker,
+    ggExtra,
+    ggpmisc (>= 0.4.3),
+    ggpp,
+    goftest,
+    gridExtra,
+    htmlwidgets,
+    jsonlite,
+    knitr,
+    lattice,
+    MASS,
+    methods,
+    nestcolor (>= 0.1.0),
+    rlang,
+    rmarkdown,
+    rtables (>= 0.5.1),
+    sparkline,
+    teal.data (>= 0.3.0),
+    testthat (>= 2.0)
+VignetteBuilder:
+    knitr
+Config/Needs/website: insightsengineering/nesttemplate
+Encoding: UTF-8
+Language: en-US
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
