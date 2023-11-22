@@ -1223,7 +1223,7 @@ render_tab_table <- function(dataset_name, parent_dataname, output, data, input,
         Variable = names(labels),
         Label = labels,
         Missings = missings,
-        Sparklines = sparklines_html,
+        `Sparklines (Data Trends)` = sparklines_html,
         stringsAsFactors = FALSE
       )
     }
