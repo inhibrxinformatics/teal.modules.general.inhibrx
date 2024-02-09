@@ -20,15 +20,17 @@
 #' @examples
 #' # Scatterplot matrix of variables from ADSL dataset
 #'
-#' ADSL <- teal.modules.general::rADSL
-#' ADRS <- teal.modules.general::rADRS
+#' data <- teal_data()
+#' data <- within(data, {
+#'   ADSL <- teal.modules.general::rADSL
+#'   ADRS <- teal.modules.general::rADRS
+#' })
+#' datanames <- c("ADSL", "ADRS")
+#' datanames(data) <- datanames
+#' join_keys(data) <- default_cdisc_join_keys[datanames]
 #'
 #' app <- teal::init(
-#'   data = teal.data::cdisc_data(
-#'     teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-#'     teal.data::cdisc_dataset("ADRS", ADRS, code = "ADRS <- teal.modules.general::rADRS"),
-#'     check = TRUE
-#'   ),
+#'   data = data,
 #'   modules = teal::modules(
 #'     teal.modules.general::tm_g_scatterplotmatrix(
 #'       label = "Scatterplot matrix",
@@ -37,7 +39,7 @@
 #'           dataname = "ADSL",
 #'           select = select_spec(
 #'             label = "Select variables:",
-#'             choices = variable_choices(ADSL),
+#'             choices = variable_choices(data[["ADSL"]]),
 #'             selected = c("AGE", "RACE", "SEX"),
 #'             multiple = TRUE,
 #'             ordered = TRUE,
@@ -49,13 +51,13 @@
 #'           filter = teal.transform::filter_spec(
 #'             label = "Select endpoints:",
 #'             vars = c("PARAMCD", "AVISIT"),
-#'             choices = value_choices(ADRS, c("PARAMCD", "AVISIT"), c("PARAM", "AVISIT")),
+#'             choices = value_choices(data[["ADRS"]], c("PARAMCD", "AVISIT"), c("PARAM", "AVISIT")),
 #'             selected = "INVET - END OF INDUCTION",
 #'             multiple = TRUE
 #'           ),
 #'           select = select_spec(
 #'             label = "Select variables:",
-#'             choices = variable_choices(ADRS),
+#'             choices = variable_choices(data[["ADRS"]]),
 #'             selected = c("AGE", "AVAL", "ADY"),
 #'             multiple = TRUE,
 #'             ordered = TRUE,
@@ -161,7 +163,8 @@ ui_g_scatterplotmatrix <- function(id, ...) {
 srv_g_scatterplotmatrix <- function(id, data, reporter, filter_panel_api, variables, plot_height, plot_width) {
   with_reporter <- !missing(reporter) && inherits(reporter, "Reporter")
   with_filter <- !missing(filter_panel_api) && inherits(filter_panel_api, "FilterPanelAPI")
-  checkmate::assert_class(data, "tdata")
+  checkmate::assert_class(data, "reactive")
+  checkmate::assert_class(isolate(data()), "teal_data")
   moduleServer(id, function(input, output, session) {
     selector_list <- teal.transform::data_extract_multiple_srv(
       data_extract = list(variables = variables),
@@ -178,13 +181,12 @@ srv_g_scatterplotmatrix <- function(id, data, reporter, filter_panel_api, variab
 
     anl_merged_input <- teal.transform::merge_expression_srv(
       datasets = data,
-      join_keys = get_join_keys(data),
       selector_list = selector_list
     )
 
     anl_merged_q <- reactive({
       req(anl_merged_input())
-      teal.code::new_qenv(tdata2env(data), code = get_code_tdata(data)) %>%
+      data() %>%
         teal.code::eval_code(as.expression(anl_merged_input()$expr))
     })
 
@@ -214,7 +216,7 @@ srv_g_scatterplotmatrix <- function(id, data, reporter, filter_panel_api, variab
       }
 
       teal::validate_has_data(ANL, 10)
-      teal::validate_has_data(ANL[, cols_names], 10, complete = TRUE, allow_inf = FALSE)
+      teal::validate_has_data(ANL[, cols_names, drop = FALSE], 10, complete = TRUE, allow_inf = FALSE)
 
       # get labels and proper variable names
       varnames <- varname_w_label(cols_names, ANL, wrap_width = 20) # nolint
@@ -353,18 +355,20 @@ srv_g_scatterplotmatrix <- function(id, data, reporter, filter_panel_api, variab
 
     ### REPORTER
     if (with_reporter) {
-      card_fun <- function(comment) {
-        card <- teal::TealReportCard$new()
-        card$set_name("Scatter Plot Matrix")
-        card$append_text("Scatter Plot Matrix", "header2")
-        if (with_filter) card$append_fs(filter_panel_api$get_filter_state())
+      card_fun <- function(comment, label) {
+        card <- teal::report_card_template(
+          title = "Scatter Plot Matrix",
+          label = label,
+          with_filter = with_filter,
+          filter_panel_api = filter_panel_api
+        )
         card$append_text("Plot", "header3")
         card$append_plot(plot_r(), dim = pws$dim())
         if (!comment == "") {
           card$append_text("Comment", "header3")
           card$append_text(comment)
         }
-        card$append_src(paste(teal.code::get_code(output_q()), collapse = "\n"))
+        card$append_src(teal.code::get_code(output_q()))
         card
       }
       teal.reporter::simple_reporter_srv("simple_reporter", reporter = reporter, card_fun = card_fun)

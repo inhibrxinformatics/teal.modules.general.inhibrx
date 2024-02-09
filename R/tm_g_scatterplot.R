@@ -36,15 +36,18 @@
 #' @export
 #' @examples
 #' # Scatterplot of variables from ADSL dataset
-#' library(nestcolor)
 #'
-#' ADSL <- teal.modules.general::rADSL
+#' data <- teal_data()
+#' data <- within(data, {
+#'   library(nestcolor)
+#'   ADSL <- teal.modules.general::rADSL
+#' })
+#' datanames <- c("ADSL")
+#' datanames(data) <- datanames
+#' join_keys(data) <- default_cdisc_join_keys[datanames]
 #'
 #' app <- teal::init(
-#'   data = teal.data::cdisc_data(
-#'     teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-#'     check = TRUE
-#'   ),
+#'   data = data,
 #'   modules = teal::modules(
 #'     teal.modules.general::tm_g_scatterplot(
 #'       label = "Scatterplot Choices",
@@ -53,7 +56,7 @@
 #'         select = teal.transform::select_spec(
 #'           label = "Select variable:",
 #'           choices = teal.transform::variable_choices(
-#'             ADSL,
+#'             data[["ADSL"]],
 #'             c("AGE", "BMRKR1", "BMRKR2")
 #'           ),
 #'           selected = "AGE",
@@ -66,7 +69,7 @@
 #'         select = teal.transform::select_spec(
 #'           label = "Select variable:",
 #'           choices = teal.transform::variable_choices(
-#'             ADSL,
+#'             data[["ADSL"]],
 #'             c("AGE", "BMRKR1", "BMRKR2")
 #'           ),
 #'           selected = "BMRKR1",
@@ -79,7 +82,7 @@
 #'         select = teal.transform::select_spec(
 #'           label = "Select variable:",
 #'           choices = teal.transform::variable_choices(
-#'             ADSL,
+#'             data[["ADSL"]],
 #'             c("AGE", "BMRKR1", "BMRKR2", "RACE", "REGION1")
 #'           ),
 #'           selected = NULL,
@@ -92,7 +95,7 @@
 #'         select = teal.transform::select_spec(
 #'           label = "Select variable:",
 #'           choices = teal.transform::variable_choices(
-#'             ADSL,
+#'             data[["ADSL"]],
 #'             c("AGE", "BMRKR1", "BMRKR2", "RACE", "REGION1")
 #'           ),
 #'           selected = "AGE",
@@ -105,7 +108,7 @@
 #'         select = teal.transform::select_spec(
 #'           label = "Select variable:",
 #'           choices = teal.transform::variable_choices(
-#'             ADSL,
+#'             data[["ADSL"]],
 #'             c("BMRKR2", "RACE", "REGION1")
 #'           ),
 #'           selected = NULL,
@@ -118,7 +121,7 @@
 #'         select = teal.transform::select_spec(
 #'           label = "Select variable:",
 #'           choices = teal.transform::variable_choices(
-#'             ADSL,
+#'             data[["ADSL"]],
 #'             c("BMRKR2", "RACE", "REGION1")
 #'           ),
 #'           selected = NULL,
@@ -411,7 +414,8 @@ srv_g_scatterplot <- function(id,
                               ggplot2_args) {
   with_reporter <- !missing(reporter) && inherits(reporter, "Reporter")
   with_filter <- !missing(filter_panel_api) && inherits(filter_panel_api, "FilterPanelAPI")
-  checkmate::assert_class(data, "tdata")
+  checkmate::assert_class(data, "reactive")
+  checkmate::assert_class(isolate(data()), "teal_data")
   moduleServer(id, function(input, output, session) {
     data_extract <- list(
       x = x,
@@ -468,14 +472,14 @@ srv_g_scatterplot <- function(id,
     anl_merged_input <- teal.transform::merge_expression_srv(
       selector_list = selector_list,
       datasets = data,
-      join_keys = get_join_keys(data),
       merge_function = "dplyr::inner_join"
     )
 
     anl_merged_q <- reactive({
       req(anl_merged_input())
-      teal.code::new_qenv(tdata2env(data), code = get_code_tdata(data)) %>%
-        teal.code::eval_code(as.expression(anl_merged_input()$expr))
+      data() %>%
+        teal.code::eval_code(as.expression(anl_merged_input()$expr)) %>%
+        teal.code::eval_code(quote(ANL)) # used to display table when running show-r-code code
     })
 
     merged <- list(
@@ -947,18 +951,20 @@ srv_g_scatterplot <- function(id,
 
     ### REPORTER
     if (with_reporter) {
-      card_fun <- function(comment) {
-        card <- teal::TealReportCard$new()
-        card$set_name("Scatter Plot")
-        card$append_text("Scatter Plot", "header2")
-        if (with_filter) card$append_fs(filter_panel_api$get_filter_state())
+      card_fun <- function(comment, label) {
+        card <- teal::report_card_template(
+          title = "Scatter Plot",
+          label = label,
+          with_filter = with_filter,
+          filter_panel_api = filter_panel_api
+        )
         card$append_text("Plot", "header3")
         card$append_plot(plot_r(), dim = pws$dim())
         if (!comment == "") {
           card$append_text("Comment", "header3")
           card$append_text(comment)
         }
-        card$append_src(paste(teal.code::get_code(output_q()), collapse = "\n"))
+        card$append_src(teal.code::get_code(output_q()))
         card
       }
       teal.reporter::simple_reporter_srv("simple_reporter", reporter = reporter, card_fun = card_fun)

@@ -23,13 +23,16 @@
 #' @examples
 #' # Percentage cross table of variables from ADSL dataset
 #'
-#' ADSL <- teal.modules.general::rADSL
+#' data <- teal_data()
+#' data <- within(data, {
+#'   ADSL <- teal.modules.general::rADSL
+#' })
+#' datanames <- c("ADSL")
+#' datanames(data) <- datanames
+#' join_keys(data) <- default_cdisc_join_keys[datanames]
 #'
 #' app <- teal::init(
-#'   data = teal.data::cdisc_data(
-#'     teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-#'     check = TRUE
-#'   ),
+#'   data = data,
 #'   modules = teal::modules(
 #'     teal.modules.general::tm_t_crosstable(
 #'       label = "Cross Table",
@@ -37,7 +40,7 @@
 #'         dataname = "ADSL",
 #'         select = teal.transform::select_spec(
 #'           label = "Select variable:",
-#'           choices = variable_choices(ADSL, subset = function(data) {
+#'           choices = variable_choices(data[["ADSL"]], subset = function(data) {
 #'             idx <- !vapply(data, inherits, logical(1), c("Date", "POSIXct", "POSIXlt"))
 #'             return(names(data)[idx])
 #'           }),
@@ -51,7 +54,7 @@
 #'         dataname = "ADSL",
 #'         select = teal.transform::select_spec(
 #'           label = "Select variable:",
-#'           choices = variable_choices(ADSL, subset = function(data) {
+#'           choices = variable_choices(data[["ADSL"]], subset = function(data) {
 #'             idx <- vapply(data, is.factor, logical(1))
 #'             return(names(data)[idx])
 #'           }),
@@ -69,7 +72,6 @@
 #' if (interactive()) {
 #'   shinyApp(app$ui, app$server)
 #' }
-#'
 tm_t_crosstable <- function(label = "Cross Table",
                             x,
                             y,
@@ -166,7 +168,8 @@ ui_t_crosstable <- function(id, x, y, show_percentage, show_total, pre_output, p
 srv_t_crosstable <- function(id, data, reporter, filter_panel_api, label, x, y, basic_table_args) {
   with_reporter <- !missing(reporter) && inherits(reporter, "Reporter")
   with_filter <- !missing(filter_panel_api) && inherits(filter_panel_api, "FilterPanelAPI")
-  checkmate::assert_class(data, "tdata")
+  checkmate::assert_class(data, "reactive")
+  checkmate::assert_class(isolate(data()), "teal_data")
   moduleServer(id, function(input, output, session) {
     selector_list <- teal.transform::data_extract_multiple_srv(
       data_extract = list(x = x, y = y),
@@ -213,14 +216,13 @@ srv_t_crosstable <- function(id, data, reporter, filter_panel_api, label, x, y, 
 
     anl_merged_input <- teal.transform::merge_expression_srv(
       datasets = data,
-      join_keys = get_join_keys(data),
       selector_list = selector_list,
       merge_function = merge_function
     )
 
     anl_merged_q <- reactive({
       req(anl_merged_input())
-      teal.code::new_qenv(tdata2env(data), code = get_code_tdata(data)) %>%
+      data() %>%
         teal.code::eval_code(as.expression(anl_merged_input()$expr))
     })
 
@@ -283,7 +285,7 @@ srv_t_crosstable <- function(id, data, reporter, filter_panel_api, label, x, y, 
               lyt <- basic_tables %>%
               split_call %>% # styler: off
                 rtables::add_colcounts() %>%
-                tern::summarize_vars(
+                tern::analyze_vars(
                   vars = x_name,
                   var_labels = labels_vec,
                   na.rm = FALSE,
@@ -351,18 +353,20 @@ srv_t_crosstable <- function(id, data, reporter, filter_panel_api, label, x, y, 
 
     ### REPORTER
     if (with_reporter) {
-      card_fun <- function(comment) {
-        card <- teal::TealReportCard$new()
-        card$set_name("Cross Table")
-        card$append_text("Cross Table", "header2")
-        if (with_filter) card$append_fs(filter_panel_api$get_filter_state())
+      card_fun <- function(comment, label) {
+        card <- teal::report_card_template(
+          title = "Cross Table",
+          label = label,
+          with_filter = with_filter,
+          filter_panel_api = filter_panel_api
+        )
         card$append_text("Table", "header3")
         card$append_table(table_r())
         if (!comment == "") {
           card$append_text("Comment", "header3")
           card$append_text(comment)
         }
-        card$append_src(paste(teal.code::get_code(output_q()), collapse = "\n"))
+        card$append_src(teal.code::get_code(output_q()))
         card
       }
       teal.reporter::simple_reporter_srv("simple_reporter", reporter = reporter, card_fun = card_fun)

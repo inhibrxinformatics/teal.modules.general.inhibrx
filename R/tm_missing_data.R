@@ -1,6 +1,7 @@
 #' Missing data module
 #'
 #' Present analysis of missing observations and patients.
+#' specifically designed for use with `data.frames`.
 #'
 #' @inheritParams teal::module
 #' @inheritParams shared_params
@@ -16,17 +17,19 @@
 #' @export
 #'
 #' @examples
-#' library(nestcolor)
 #'
-#' ADSL <- teal.modules.general::rADSL
-#' ADRS <- teal.modules.general::rADRS
+#' data <- teal_data()
+#' data <- within(data, {
+#'   library(nestcolor)
+#'   ADSL <- teal.modules.general::rADSL
+#'   ADRS <- teal.modules.general::rADRS
+#' })
+#' datanames <- c("ADSL", "ADRS")
+#' datanames(data) <- datanames
+#' join_keys(data) <- default_cdisc_join_keys[datanames]
 #'
 #' app <- teal::init(
-#'   data = teal.data::cdisc_data(
-#'     teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-#'     teal.data::cdisc_dataset("ADRS", ADRS, code = "ADRS <- teal.modules.general::rADRS"),
-#'     check = TRUE
-#'   ),
+#'   data = data,
 #'   modules = teal::modules(
 #'     teal.modules.general::tm_missing_data(
 #'       ggplot2_args = list(
@@ -83,23 +86,16 @@ tm_missing_data <- function(label = "Missing data",
     server = srv_page_missing_data,
     server_args = list(
       parent_dataname = parent_dataname, plot_height = plot_height,
-      plot_width = plot_width, ggplot2_args = ggplot2_args
+      plot_width = plot_width, ggplot2_args = ggplot2_args, ggtheme = ggtheme
     ),
     ui = ui_page_missing_data,
     datanames = "all",
-    ui_args = list(
-      parent_dataname = parent_dataname, pre_output = pre_output,
-      post_output = post_output, ggtheme = ggtheme
-    )
+    ui_args = list(pre_output = pre_output, post_output = post_output)
   )
 }
 
-ui_page_missing_data <- function(id, data, parent_dataname, pre_output = NULL, post_output = NULL, ggtheme) {
+ui_page_missing_data <- function(id, pre_output = NULL, post_output = NULL) {
   ns <- NS(id)
-  datanames <- names(data)
-
-  if_subject_plot <- length(parent_dataname) > 0 && parent_dataname %in% datanames
-
   shiny::tagList(
     include_css_files("custom"),
     teal.widgets::standard_layout(
@@ -108,48 +104,14 @@ ui_page_missing_data <- function(id, data, parent_dataname, pre_output = NULL, p
           class = "flex",
           column(
             width = 12,
-            do.call(
-              tabsetPanel,
-              c(
-                id = ns("dataname_tab"),
-                lapply(
-                  datanames,
-                  function(x) {
-                    tabPanel(
-                      title = x,
-                      column(
-                        width = 12,
-                        div(
-                          class = "mt-4",
-                          ui_missing_data(id = ns(x), by_subject_plot = if_subject_plot)
-                        )
-                      )
-                    )
-                  }
-                )
-              )
-            )
+            uiOutput(ns("dataset_tabs"))
           )
         )
       ),
       encoding = div(
-        tagList(
-          lapply(
-            datanames,
-            function(x) {
-              conditionalPanel(
-                is_tab_active_js(ns("dataname_tab"), x),
-                encoding_missing_data(
-                  id = ns(x),
-                  summary_per_patient = if_subject_plot,
-                  ggtheme = ggtheme,
-                  datanames = datanames
-                )
-              )
-            }
-          )
-        )
+        uiOutput(ns("dataset_encodings"))
       ),
+      uiOutput(ns("dataset_reporter")),
       pre_output = pre_output,
       post_output = post_output
     )
@@ -157,10 +119,74 @@ ui_page_missing_data <- function(id, data, parent_dataname, pre_output = NULL, p
 }
 
 srv_page_missing_data <- function(id, data, reporter, filter_panel_api, parent_dataname,
-                                  plot_height, plot_width, ggplot2_args) {
+                                  plot_height, plot_width, ggplot2_args, ggtheme) {
   moduleServer(id, function(input, output, session) {
+    datanames <- isolate(teal.data::datanames(data()))
+    datanames <- Filter(function(name) {
+      is.data.frame(isolate(data())[[name]])
+    }, datanames)
+    if_subject_plot <- length(parent_dataname) > 0 && parent_dataname %in% datanames
+    ns <- session$ns
+
+    output$dataset_tabs <- renderUI({
+      do.call(
+        tabsetPanel,
+        c(
+          id = ns("dataname_tab"),
+          lapply(
+            datanames,
+            function(x) {
+              tabPanel(
+                title = x,
+                column(
+                  width = 12,
+                  div(
+                    class = "mt-4",
+                    ui_missing_data(id = ns(x), by_subject_plot = if_subject_plot)
+                  )
+                )
+              )
+            }
+          )
+        )
+      )
+    })
+
+    output$dataset_encodings <- renderUI({
+      tagList(
+        lapply(
+          datanames,
+          function(x) {
+            conditionalPanel(
+              is_tab_active_js(ns("dataname_tab"), x),
+              encoding_missing_data(
+                id = ns(x),
+                summary_per_patient = if_subject_plot,
+                ggtheme = ggtheme,
+                datanames = datanames
+              )
+            )
+          }
+        )
+      )
+    })
+
+    output$dataset_reporter <- renderUI({
+      lapply(datanames, function(x) {
+        dataname_ns <- NS(ns(x))
+
+        conditionalPanel(
+          is_tab_active_js(ns("dataname_tab"), x),
+          tagList(
+            teal.widgets::verbatim_popup_ui(dataname_ns("warning"), "Show Warnings"),
+            teal.widgets::verbatim_popup_ui(dataname_ns("rcode"), "Show R code")
+          )
+        )
+      })
+    })
+
     lapply(
-      names(data),
+      datanames,
       function(x) {
         srv_missing_data(
           id = x,
@@ -331,12 +357,7 @@ encoding_missing_data <- function(id, summary_per_patient = FALSE, ggtheme, data
         selected = ggtheme,
         multiple = FALSE
       )
-    ),
-    hr(),
-    forms = tagList(
-      teal.widgets::verbatim_popup_ui(ns("warning"), "Show Warnings"),
-      teal.widgets::verbatim_popup_ui(ns("rcode"), "Show R code")
-    ),
+    )
   )
 }
 
@@ -344,11 +365,12 @@ srv_missing_data <- function(id, data, reporter, filter_panel_api, dataname, par
                              plot_height, plot_width, ggplot2_args) {
   with_reporter <- !missing(reporter) && inherits(reporter, "Reporter")
   with_filter <- !missing(filter_panel_api) && inherits(filter_panel_api, "FilterPanelAPI")
-  checkmate::assert_class(data, "tdata")
+  checkmate::assert_class(data, "reactive")
+  checkmate::assert_class(isolate(data()), "teal_data")
   moduleServer(id, function(input, output, session) {
     prev_group_by_var <- reactiveVal("")
-    data_r <- data[[dataname]]
-    data_keys <- reactive(get_join_keys(data)$get(dataname)[[dataname]])
+    data_r <- reactive(data()[[dataname]])
+    data_keys <- reactive(unlist(teal.data::join_keys(data())[[dataname]]))
 
     iv_r <- reactive({
       iv <- shinyvalidate::InputValidator$new()
@@ -387,7 +409,7 @@ srv_missing_data <- function(id, data, reporter, filter_panel_api, dataname, par
 
     data_parent_keys <- reactive({
       if (length(parent_dataname) > 0 && parent_dataname %in% names(data)) {
-        keys <- get_join_keys(data)$get(dataname)
+        keys <- teal.data::join_keys(data)[[dataname]]
         if (parent_dataname %in% names(keys)) {
           keys[[parent_dataname]]
         } else {
@@ -403,11 +425,10 @@ srv_missing_data <- function(id, data, reporter, filter_panel_api, dataname, par
 
       group_var <- input$group_by_var
       anl <- data_r()
-      qenv <- teal.code::new_qenv(tdata2env(data), code = get_code_tdata(data))
 
       qenv <- if (!is.null(selected_vars()) && length(selected_vars()) != ncol(anl)) {
         teal.code::eval_code(
-          qenv,
+          data(),
           substitute(
             expr = ANL <- anl_name[, selected_vars, drop = FALSE], # nolint
             env = list(anl_name = as.name(dataname), selected_vars = selected_vars())
@@ -415,7 +436,7 @@ srv_missing_data <- function(id, data, reporter, filter_panel_api, dataname, par
         )
       } else {
         teal.code::eval_code(
-          qenv,
+          data(),
           substitute(expr = ANL <- anl_name, env = list(anl_name = as.name(dataname))) # nolint
         )
       }
@@ -1194,12 +1215,17 @@ srv_missing_data <- function(id, data, reporter, filter_panel_api, dataname, par
 
     ### REPORTER
     if (with_reporter) {
-      card_fun <- function(comment) {
+      card_fun <- function(comment, label) {
         card <- teal::TealReportCard$new()
         sum_type <- input$summary_type
         title <- if (sum_type == "By Variable Levels") paste0(sum_type, " Table") else paste0(sum_type, " Plot")
         title_dataname <- paste(title, dataname, sep = " - ")
-        card$set_name(paste("Missing Data", sum_type, dataname, sep = " - "))
+        label <- if (label == "") {
+          paste("Missing Data", sum_type, dataname, sep = " - ")
+        } else {
+          label
+        }
+        card$set_name(label)
         card$append_text(title_dataname, "header2")
         if (with_filter) card$append_fs(filter_panel_api$get_filter_state())
         if (sum_type == "Summary") {
@@ -1219,7 +1245,7 @@ srv_missing_data <- function(id, data, reporter, filter_panel_api, dataname, par
           card$append_text("Comment", "header3")
           card$append_text(comment)
         }
-        card$append_src(paste(teal.code::get_code(final_q()), collapse = "\n"))
+        card$append_src(teal.code::get_code(final_q()))
         card
       }
       teal.reporter::simple_reporter_srv("simple_reporter", reporter = reporter, card_fun = card_fun)
