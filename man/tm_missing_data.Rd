@@ -19,8 +19,8 @@ tm_missing_data(
 )
 }
 \arguments{
-\item{label}{(\code{character(1)}) Label shown in the navigation item for the module. Any label possible except
-\code{"global_filters"} - read more in \code{mapping} argument of \link[teal]{teal_slices}.}
+\item{label}{(\code{character(1)}) Label shown in the navigation item for the module or module group.
+For \code{modules()} defaults to \code{"root"}. See \code{Details}.}
 
 \item{plot_height}{optional, (\code{numeric}) A vector of length three with \verb{c(value, min and max)}
 for a slider encoding the plot height.}
@@ -51,19 +51,22 @@ into context. For example the \code{\link[shiny:helpText]{shiny::helpText()}} el
 }
 \description{
 Present analysis of missing observations and patients.
+specifically designed for use with \code{data.frames}.
 }
 \examples{
-library(nestcolor)
 
-ADSL <- teal.modules.general::rADSL
-ADRS <- teal.modules.general::rADRS
+data <- teal_data()
+data <- within(data, {
+  library(nestcolor)
+  ADSL <- teal.modules.general::rADSL
+  ADRS <- teal.modules.general::rADRS
+})
+datanames <- c("ADSL", "ADRS")
+datanames(data) <- datanames
+join_keys(data) <- default_cdisc_join_keys[datanames]
 
 app <- teal::init(
-  data = teal.data::cdisc_data(
-    teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-    teal.data::cdisc_dataset("ADRS", ADRS, code = "ADRS <- teal.modules.general::rADRS"),
-    check = TRUE
-  ),
+  data = data,
   modules = teal::modules(
     teal.modules.general::tm_missing_data(
       ggplot2_args = list(

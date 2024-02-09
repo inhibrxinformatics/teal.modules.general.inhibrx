@@ -14,8 +14,8 @@ tm_g_scatterplotmatrix(
 )
 }
 \arguments{
-\item{label}{(\code{character(1)}) Label shown in the navigation item for the module. Any label possible except
-\code{"global_filters"} - read more in \code{mapping} argument of \link[teal]{teal_slices}.}
+\item{label}{(\code{character(1)}) Label shown in the navigation item for the module or module group.
+For \code{modules()} defaults to \code{"root"}. See \code{Details}.}
 
 \item{variables}{(\code{data_extract_spec} or \code{list} of multiple \code{data_extract_spec})
 Plotting variables from an incoming dataset with filtering and selecting. In case of
@@ -45,15 +45,17 @@ For more examples, please see the vignette "Using scatterplot matrix" via
 \examples{
 # Scatterplot matrix of variables from ADSL dataset
 
-ADSL <- teal.modules.general::rADSL
-ADRS <- teal.modules.general::rADRS
+data <- teal_data()
+data <- within(data, {
+  ADSL <- teal.modules.general::rADSL
+  ADRS <- teal.modules.general::rADRS
+})
+datanames <- c("ADSL", "ADRS")
+datanames(data) <- datanames
+join_keys(data) <- default_cdisc_join_keys[datanames]
 
 app <- teal::init(
-  data = teal.data::cdisc_data(
-    teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-    teal.data::cdisc_dataset("ADRS", ADRS, code = "ADRS <- teal.modules.general::rADRS"),
-    check = TRUE
-  ),
+  data = data,
   modules = teal::modules(
     teal.modules.general::tm_g_scatterplotmatrix(
       label = "Scatterplot matrix",
@@ -62,7 +64,7 @@ app <- teal::init(
           dataname = "ADSL",
           select = select_spec(
             label = "Select variables:",
-            choices = variable_choices(ADSL),
+            choices = variable_choices(data[["ADSL"]]),
             selected = c("AGE", "RACE", "SEX"),
             multiple = TRUE,
             ordered = TRUE,
@@ -74,13 +76,13 @@ app <- teal::init(
           filter = teal.transform::filter_spec(
             label = "Select endpoints:",
             vars = c("PARAMCD", "AVISIT"),
-            choices = value_choices(ADRS, c("PARAMCD", "AVISIT"), c("PARAM", "AVISIT")),
+            choices = value_choices(data[["ADRS"]], c("PARAMCD", "AVISIT"), c("PARAM", "AVISIT")),
             selected = "INVET - END OF INDUCTION",
             multiple = TRUE
           ),
           select = select_spec(
             label = "Select variables:",
-            choices = variable_choices(ADRS),
+            choices = variable_choices(data[["ADRS"]]),
             selected = c("AGE", "AVAL", "ADY"),
             multiple = TRUE,
             ordered = TRUE,

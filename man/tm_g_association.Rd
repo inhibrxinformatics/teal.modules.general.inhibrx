@@ -21,8 +21,8 @@ tm_g_association(
 )
 }
 \arguments{
-\item{label}{(\code{character(1)}) Label shown in the navigation item for the module. Any label possible except
-\code{"global_filters"} - read more in \code{mapping} argument of \link[teal]{teal_slices}.}
+\item{label}{(\code{character(1)}) Label shown in the navigation item for the module or module group.
+For \code{modules()} defaults to \code{"root"}. See \code{Details}.}
 
 \item{ref}{(\code{data_extract_spec} or \code{list} of multiple \code{data_extract_spec})
 reference variable, must set \code{multiple = FALSE}.}
@@ -71,14 +71,17 @@ For more examples, please see the vignette "Using association plot" via
 \examples{
 # Association plot of selected reference variable (SEX)
 # against other selected variables (BMRKR1)
-library(nestcolor)
-ADSL <- teal.modules.general::rADSL
+data <- teal_data()
+data <- within(data, {
+  library(nestcolor)
+  ADSL <- teal.modules.general::rADSL
+})
+datanames <- c("ADSL")
+datanames(data) <- datanames
+join_keys(data) <- default_cdisc_join_keys[datanames]
 
 app <- teal::init(
-  data = teal.data::cdisc_data(
-    teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-    check = TRUE
-  ),
+  data = data,
   modules = teal::modules(
     teal.modules.general::tm_g_association(
       ref = teal.transform::data_extract_spec(
@@ -86,7 +89,7 @@ app <- teal::init(
         select = teal.transform::select_spec(
           label = "Select variable:",
           choices = teal.transform::variable_choices(
-            ADSL,
+            data[["ADSL"]],
             c("SEX", "RACE", "COUNTRY", "ARM", "STRATA1", "STRATA2", "ITTFL", "BMRKR2")
           ),
           selected = "RACE",
@@ -98,7 +101,7 @@ app <- teal::init(
         select = teal.transform::select_spec(
           label = "Select variables:",
           choices = teal.transform::variable_choices(
-            ADSL,
+            data[["ADSL"]],
             c("SEX", "RACE", "COUNTRY", "ARM", "STRATA1", "STRATA2", "ITTFL", "BMRKR2")
           ),
           selected = "BMRKR2",

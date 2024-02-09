@@ -16,8 +16,8 @@ tm_t_crosstable(
 )
 }
 \arguments{
-\item{label}{(\code{character(1)}) Label shown in the navigation item for the module. Any label possible except
-\code{"global_filters"} - read more in \code{mapping} argument of \link[teal]{teal_slices}.}
+\item{label}{(\code{character(1)}) Label shown in the navigation item for the module or module group.
+For \code{modules()} defaults to \code{"root"}. See \code{Details}.}
 
 \item{x}{(\code{data_extract_spec} or \code{list} of multiple \code{data_extract_spec})
 Object with all available choices with pre-selected option for variable X - row values. In case
@@ -55,13 +55,16 @@ For more examples, please see the vignette "Using cross table" via
 \examples{
 # Percentage cross table of variables from ADSL dataset
 
-ADSL <- teal.modules.general::rADSL
+data <- teal_data()
+data <- within(data, {
+  ADSL <- teal.modules.general::rADSL
+})
+datanames <- c("ADSL")
+datanames(data) <- datanames
+join_keys(data) <- default_cdisc_join_keys[datanames]
 
 app <- teal::init(
-  data = teal.data::cdisc_data(
-    teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-    check = TRUE
-  ),
+  data = data,
   modules = teal::modules(
     teal.modules.general::tm_t_crosstable(
       label = "Cross Table",
@@ -69,7 +72,7 @@ app <- teal::init(
         dataname = "ADSL",
         select = teal.transform::select_spec(
           label = "Select variable:",
-          choices = variable_choices(ADSL, subset = function(data) {
+          choices = variable_choices(data[["ADSL"]], subset = function(data) {
             idx <- !vapply(data, inherits, logical(1), c("Date", "POSIXct", "POSIXlt"))
             return(names(data)[idx])
           }),
@@ -83,7 +86,7 @@ app <- teal::init(
         dataname = "ADSL",
         select = teal.transform::select_spec(
           label = "Select variable:",
-          choices = variable_choices(ADSL, subset = function(data) {
+          choices = variable_choices(data[["ADSL"]], subset = function(data) {
             idx <- vapply(data, is.factor, logical(1))
             return(names(data)[idx])
           }),
@@ -101,5 +104,4 @@ app <- teal::init(
 if (interactive()) {
   shinyApp(app$ui, app$server)
 }
-
 }

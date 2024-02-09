@@ -17,8 +17,8 @@ tm_data_table(
 )
 }
 \arguments{
-\item{label}{(\code{character(1)}) Label shown in the navigation item for the module. Any label possible except
-\code{"global_filters"} - read more in \code{mapping} argument of \link[teal]{teal_slices}.}
+\item{label}{(\code{character(1)}) Label shown in the navigation item for the module or module group.
+For \code{modules()} defaults to \code{"root"}. See \code{Details}.}
 
 \item{variables_selected}{(\code{list}) A named list of character vectors of the variables (i.e. columns)
 which should be initially shown for each dataset. Names of list elements should correspond to the names
@@ -27,7 +27,9 @@ dataset will initially be shown.}
 
 \item{datasets_selected}{(\code{character}) A vector of datasets which should be
 shown and in what order. Names in the vector have to correspond with datasets names.
-If vector of length zero (default) then all datasets are shown.}
+If vector of length zero (default) then all datasets are shown.
+Note: Only datasets of the \code{data.frame} class are compatible;
+using other types will cause an error.}
 
 \item{dt_args}{(named \code{list}) Additional arguments to be passed to \code{DT::datatable}
 (must not include \code{data} or \code{options}).}
@@ -46,6 +48,7 @@ into context. For example the \code{\link[shiny:helpText]{shiny::helpText()}} el
 }
 \description{
 A data table viewer shows the data using a paginated table.
+specifically designed for use with \code{data.frames}.
 }
 \details{
 The \code{DT} package has an option \code{DT.TOJSON_ARGS} to show \code{Inf} and \code{NA} in data tables. If this is something
@@ -54,13 +57,17 @@ Note though that sorting of numeric columns with \code{NA}/\code{Inf} will be le
 }
 \examples{
 
-ADSL <- teal.modules.general::rADSL
+data <- teal_data()
+data <- within(data, {
+  library(nestcolor)
+  ADSL <- teal.modules.general::rADSL
+})
+datanames <- c("ADSL")
+datanames(data) <- datanames
+join_keys(data) <- default_cdisc_join_keys[datanames]
 
 app <- teal::init(
-  data = teal.data::cdisc_data(
-    teal.data::cdisc_dataset("ADSL", ADSL, code = "ADSL <- teal.modules.general::rADSL"),
-    check = TRUE
-  ),
+  data = data,
   modules = teal::modules(
     teal.modules.general::tm_data_table(
       variables_selected = list(ADSL = c("STUDYID", "USUBJID", "SUBJID", "SITEID", "AGE", "SEX")),

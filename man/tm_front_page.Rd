@@ -14,8 +14,8 @@ tm_front_page(
 )
 }
 \arguments{
-\item{label}{(\code{character(1)}) Label shown in the navigation item for the module. Any label possible except
-\code{"global_filters"} - read more in \code{mapping} argument of \link[teal]{teal_slices}.}
+\item{label}{(\code{character(1)}) Label shown in the navigation item for the module or module group.
+For \code{modules()} defaults to \code{"root"}. See \code{Details}.}
 
 \item{header_text}{\verb{character vector} text to be shown at the top of the module, for each
 element, if named the name is shown first in bold as a header followed by the value. The first
@@ -40,6 +40,16 @@ This \code{teal} module creates a simple front page for \code{teal} applications
 }
 \examples{
 
+data <- teal_data()
+data <- within(data, {
+  library(nestcolor)
+  ADSL <- teal.modules.general::rADSL
+  attr(ADSL, "metadata") <- list("Author" = "NEST team", "data_source" = "synthetic data")
+})
+datanames <- c("ADSL")
+datanames(data) <- datanames
+join_keys(data) <- default_cdisc_join_keys[datanames]
+
 table_1 <- data.frame(Info = c("A", "B"), Text = c("A", "B"))
 table_2 <- data.frame(`Column 1` = c("C", "D"), `Column 2` = c(5.5, 6.6), `Column 3` = c("A", "B"))
 table_3 <- data.frame(Info = c("E", "F"), Text = c("G", "H"))
@@ -50,15 +60,8 @@ table_input <- list(
   "Table 3" = table_3
 )
 
-ADSL <- teal.modules.general::rADSL
 app <- teal::init(
-  data = teal.data::cdisc_data(
-    teal.data::cdisc_dataset("ADSL", ADSL,
-      code = "ADSL <- teal.modules.general::rADSL",
-      metadata = list("Author" = "NEST team", "data_source" = "synthetic data")
-    ),
-    check = TRUE
-  ),
+  data = data,
   modules = teal::modules(
     teal.modules.general::tm_front_page(
       header_text = c(
