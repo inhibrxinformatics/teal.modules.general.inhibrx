@@ -24,24 +24,25 @@
 #'
 #' # ADSL example
 #'
-#' library(nestcolor)
-#' ADSL <- teal.modules.general::rADSL
-#'
+#' data <- teal_data()
+#' data <- within(data, {
+#'   library(nestcolor)
+#'   ADSL <- teal.modules.general::rADSL
+#' })
+#' datanames <- c("ADSL")
+#' datanames(data) <- datanames
+#' join_keys(data) <- default_cdisc_join_keys[datanames]
 #' app <- teal::init(
-#'   data = teal.data::cdisc_data(
-#'     teal.data::cdisc_dataset(
-#'       "ADSL", ADSL,
-#'       code = "ADSL <- teal.modules.general::rADSL"
-#'     ),
-#'     check = TRUE
-#'   ),
+#'   data = data,
 #'   modules = teal::modules(
 #'     teal.modules.general::tm_a_pca(
 #'       "PCA",
 #'       dat = teal.transform::data_extract_spec(
 #'         dataname = "ADSL",
 #'         select = teal.transform::select_spec(
-#'           choices = teal.transform::variable_choices(data = ADSL, c("BMRKR1", "AGE", "EOSDY")),
+#'           choices = teal.transform::variable_choices(
+#'             data = data[["ADSL"]], c("BMRKR1", "AGE", "EOSDY")
+#'           ),
 #'           selected = c("BMRKR1", "AGE"),
 #'           multiple = TRUE
 #'         ),
@@ -56,7 +57,6 @@
 #' if (interactive()) {
 #'   shinyApp(app$ui, app$server)
 #' }
-#'
 tm_a_pca <- function(label = "Principal Component Analysis",
                      dat,
                      plot_height = c(600, 200, 2000),
@@ -246,7 +246,8 @@ ui_a_pca <- function(id, ...) {
 srv_a_pca <- function(id, data, reporter, filter_panel_api, dat, plot_height, plot_width, ggplot2_args) {
   with_reporter <- !missing(reporter) && inherits(reporter, "Reporter")
   with_filter <- !missing(filter_panel_api) && inherits(filter_panel_api, "FilterPanelAPI")
-  checkmate::assert_class(data, "tdata")
+  checkmate::assert_class(data, "reactive")
+  checkmate::assert_class(isolate(data()), "teal_data")
   moduleServer(id, function(input, output, session) {
     response <- dat
 
@@ -254,10 +255,10 @@ srv_a_pca <- function(id, data, reporter, filter_panel_api, dat, plot_height, pl
       response[[i]]$select$multiple <- FALSE
       response[[i]]$select$always_selected <- NULL
       response[[i]]$select$selected <- NULL
-      response[[i]]$select$choices <- var_labels(data[[response[[i]]$dataname]]())
+      response[[i]]$select$choices <- var_labels(isolate(data())[[response[[i]]$dataname]])
       response[[i]]$select$choices <- setdiff(
         response[[i]]$select$choices,
-        unlist(get_join_keys(data)$get(response[[i]]$dataname))
+        unlist(teal.data::join_keys(isolate(data()))[[response[[i]]$dataname]])
       )
     }
 
@@ -322,13 +323,12 @@ srv_a_pca <- function(id, data, reporter, filter_panel_api, dat, plot_height, pl
 
     anl_merged_input <- teal.transform::merge_expression_srv(
       selector_list = selector_list,
-      datasets = data,
-      join_keys = get_join_keys(data)
+      datasets = data
     )
 
     anl_merged_q <- reactive({
       req(anl_merged_input())
-      teal.code::new_qenv(tdata2env(data), code = get_code_tdata(data)) %>%
+      data() %>%
         teal.code::eval_code(as.expression(anl_merged_input()$expr))
     })
 
@@ -999,12 +999,13 @@ srv_a_pca <- function(id, data, reporter, filter_panel_api, dat, plot_height, pl
 
     ### REPORTER
     if (with_reporter) {
-      card_fun <- function(comment) {
-        card <- teal::TealReportCard$new()
-        card$set_name("PCA Plot")
-        card$append_text("PCA Plot", "header2")
-        card$append_text("Principal Component Analysis Plot", "header3")
-        if (with_filter) card$append_fs(filter_panel_api$get_filter_state())
+      card_fun <- function(comment, label) {
+        card <- teal::report_card_template(
+          title = "Principal Component Analysis Plot",
+          label = label,
+          with_filter = with_filter,
+          filter_panel_api = filter_panel_api
+        )
         card$append_text("Principal Components Table", "header3")
         card$append_table(computation()[["tbl_importance"]])
         card$append_text("Eigenvectors Table", "header3")
@@ -1015,7 +1016,7 @@ srv_a_pca <- function(id, data, reporter, filter_panel_api, dat, plot_height, pl
           card$append_text("Comment", "header3")
           card$append_text(comment)
         }
-        card$append_src(paste(teal.code::get_code(output_q()), collapse = "\n"))
+        card$append_src(teal.code::get_code(output_q()))
         card
       }
       teal.reporter::simple_reporter_srv("simple_reporter", reporter = reporter, card_fun = card_fun)

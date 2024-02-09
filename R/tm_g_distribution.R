@@ -29,8 +29,15 @@
 #'
 #' @examples
 #' # Example with non-clinical data
+#'
+#' data <- teal_data()
+#' data <- within(data, {
+#'   iris <- iris
+#' })
+#' datanames(data) <- c("iris")
+#'
 #' app <- teal::init(
-#'   data = teal_data(dataset("iris", iris)),
+#'   data = data,
 #'   modules = list(
 #'     teal.modules.general::tm_g_distribution(
 #'       dist_var = teal.transform::data_extract_spec(
@@ -48,22 +55,27 @@
 #' }
 #'
 #' # Example with clinical data
-#' ADSL <- teal.modules.general::rADSL
+#' data <- teal_data()
+#' data <- within(data, {
+#'   ADSL <- teal.modules.general::rADSL
+#' })
+#' datanames <- c("ADSL")
+#' datanames(data) <- datanames
+#' join_keys(data) <- default_cdisc_join_keys[datanames]
 #'
-#' vars1 <- choices_selected(variable_choices(ADSL, c("ARM", "COUNTRY", "SEX")), selected = NULL)
+#' vars1 <- choices_selected(
+#'   variable_choices(data[["ADSL"]], c("ARM", "COUNTRY", "SEX")),
+#'   selected = NULL
+#' )
 #'
 #' app <- teal::init(
-#'   data = teal.data::cdisc_data(
-#'     teal.data::cdisc_dataset("ADSL", ADSL),
-#'     code = "ADSL <- teal.modules.general::rADSL",
-#'     check = FALSE
-#'   ),
+#'   data = data,
 #'   modules = teal::modules(
 #'     teal.modules.general::tm_g_distribution(
 #'       dist_var = teal.transform::data_extract_spec(
 #'         dataname = "ADSL",
 #'         select = teal.transform::select_spec(
-#'           choices = teal.transform::variable_choices(ADSL, c("AGE", "BMRKR1")),
+#'           choices = teal.transform::variable_choices(data[["ADSL"]], c("AGE", "BMRKR1")),
 #'           selected = "BMRKR1",
 #'           multiple = FALSE,
 #'           fixed = FALSE
@@ -167,7 +179,7 @@ ui_distribution <- function(id, ...) {
   is_single_dataset_value <- teal.transform::is_single_dataset(args$dist_var, args$strata_var, args$group_var)
 
   teal.widgets::standard_layout(
-    output = tagList(
+    output = teal.widgets::white_small_well(
       tabsetPanel(
         id = ns("tabs"),
         tabPanel("Histogram", teal.widgets::plot_with_settings_ui(id = ns("hist_plot"))),
@@ -318,7 +330,8 @@ srv_distribution <- function(id,
                              ggplot2_args) {
   with_reporter <- !missing(reporter) && inherits(reporter, "Reporter")
   with_filter <- !missing(filter_panel_api) && inherits(filter_panel_api, "FilterPanelAPI")
-  checkmate::assert_class(data, "tdata")
+  checkmate::assert_class(data, "reactive")
+  checkmate::assert_class(isolate(data()), "teal_data")
   moduleServer(id, function(input, output, session) {
     rule_req <- function(value) {
       if (isTRUE(input$dist_tests %in% c(
@@ -434,13 +447,12 @@ srv_distribution <- function(id,
 
     anl_merged_input <- teal.transform::merge_expression_srv(
       selector_list = selector_list,
-      datasets = data,
-      join_keys = get_join_keys(data)
+      datasets = data
     )
 
     anl_merged_q <- reactive({
       req(anl_merged_input())
-      teal.code::new_qenv(tdata2env(data), code = get_code_tdata(data)) %>%
+      data() %>%
         teal.code::eval_code(as.expression(anl_merged_input()$expr))
     })
 
@@ -638,6 +650,7 @@ srv_distribution <- function(id,
                   sd = round(stats::sd(dist_var_name, na.rm = TRUE), roundn),
                   count = dplyr::n()
                 )
+              summary_table # used to display table when running show-r-code code
             },
             env = list(
               dist_var_name = dist_var_name,
@@ -647,8 +660,6 @@ srv_distribution <- function(id,
           )
         )
       }
-
-      qenv
     })
 
     # distplot qenv ----
@@ -1141,7 +1152,9 @@ srv_distribution <- function(id,
             )
           )
         }
-        qenv
+        qenv %>%
+          # used to display table when running show-r-code code
+          teal.code::eval_code(quote(test_stats))
       }
     )
 
@@ -1224,11 +1237,13 @@ srv_distribution <- function(id,
 
     ### REPORTER
     if (with_reporter) {
-      card_fun <- function(comment) {
-        card <- teal::TealReportCard$new()
-        card$set_name("Distribution Plot")
-        card$append_text("Distribution Plot", "header2")
-        if (with_filter) card$append_fs(filter_panel_api$get_filter_state())
+      card_fun <- function(comment, label) {
+        card <- teal::report_card_template(
+          title = "Distribution Plot",
+          label = label,
+          with_filter = with_filter,
+          filter_panel_api = filter_panel_api
+        )
         card$append_text("Plot", "header3")
         if (input$tabs == "Histogram") {
           card$append_plot(dist_r(), dim = pws1$dim())
@@ -1248,7 +1263,7 @@ srv_distribution <- function(id,
           card$append_text("Comment", "header3")
           card$append_text(comment)
         }
-        card$append_src(paste(teal.code::get_code(output_q()), collapse = "\n"))
+        card$append_src(teal.code::get_code(output_q()))
         card
       }
       teal.reporter::simple_reporter_srv("simple_reporter", reporter = reporter, card_fun = card_fun)
