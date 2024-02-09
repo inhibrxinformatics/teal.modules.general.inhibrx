@@ -21,8 +21,8 @@ tm_a_pca(
 )
 }
 \arguments{
-\item{label}{(\code{character(1)}) Label shown in the navigation item for the module. Any label possible except
-\code{"global_filters"} - read more in \code{mapping} argument of \link[teal]{teal_slices}.}
+\item{label}{(\code{character(1)}) Label shown in the navigation item for the module or module group.
+For \code{modules()} defaults to \code{"root"}. See \code{Details}.}
 
 \item{dat}{(\code{data_extract_spec} or \code{list} of multiple \code{data_extract_spec})
 Columns used to compute PCA.}
@@ -73,24 +73,25 @@ Principal component analysis module
 
 # ADSL example
 
-library(nestcolor)
-ADSL <- teal.modules.general::rADSL
-
+data <- teal_data()
+data <- within(data, {
+  library(nestcolor)
+  ADSL <- teal.modules.general::rADSL
+})
+datanames <- c("ADSL")
+datanames(data) <- datanames
+join_keys(data) <- default_cdisc_join_keys[datanames]
 app <- teal::init(
-  data = teal.data::cdisc_data(
-    teal.data::cdisc_dataset(
-      "ADSL", ADSL,
-      code = "ADSL <- teal.modules.general::rADSL"
-    ),
-    check = TRUE
-  ),
+  data = data,
   modules = teal::modules(
     teal.modules.general::tm_a_pca(
       "PCA",
       dat = teal.transform::data_extract_spec(
         dataname = "ADSL",
         select = teal.transform::select_spec(
-          choices = teal.transform::variable_choices(data = ADSL, c("BMRKR1", "AGE", "EOSDY")),
+          choices = teal.transform::variable_choices(
+            data = data[["ADSL"]], c("BMRKR1", "AGE", "EOSDY")
+          ),
           selected = c("BMRKR1", "AGE"),
           multiple = TRUE
         ),
@@ -105,5 +106,4 @@ app <- teal::init(
 if (interactive()) {
   shinyApp(app$ui, app$server)
 }
-
 }

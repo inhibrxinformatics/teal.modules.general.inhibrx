@@ -1,8 +1,8 @@
 Type: Package
 Package: teal.modules.general
 Title: General Modules to Add to a `teal` Application
-Version: 0.2.16
-Date: 2023-08-11
+Version: 0.2.16.9020
+Date: 2024-02-09
 Authors@R: c(
     person("Dawid", "Kaledkowski", , "dawid.kaledkowski@roche.com", role = c("aut", "cre")),
     person("Pawel", "Rucki", , "pawel.rucki@roche.com", role = "aut"),
@@ -15,40 +15,43 @@ Authors@R: c(
   )
 Description: General Purpose Teal Modules.
 License: Apache License 2.0 | file LICENSE
+URL: https://insightsengineering.github.io/teal.modules.general/,
+    https://github.com/insightsengineering/teal.modules.general/
+BugReports: 
+    https://github.com/insightsengineering/teal.modules.general/issues
 Depends:
     ggmosaic (>= 0.3.0),
-    ggplot2,
+    ggplot2 (>= 3.4.0),
     R (>= 3.6),
-    shiny,
+    shiny (>= 1.6.0),
     shinyTree,
-    teal (>= 0.14.0)
+    teal (>= 0.14.0.9027),
+    teal.transform (>= 0.4.0.9011)
 Imports:
-    checkmate,
-    dplyr,
-    DT,
+    checkmate (>= 2.1.0),
+    dplyr (>= 1.0.5),
+    DT (>= 0.13),
     forcats (>= 1.0.0),
     grid,
     logger (>= 0.2.0),
-    magrittr,
+    magrittr (>= 1.5),
     scales,
     shinyjs,
     shinyvalidate,
-    shinyWidgets,
+    shinyWidgets (>= 0.5.1),
     stats,
-    stringr,
-    teal.code (>= 0.4.0),
+    stringr (>= 1.4.1),
+    teal.code (>= 0.4.1.9009),
     teal.logger (>= 0.1.1),
     teal.reporter (>= 0.2.0),
-    teal.slice (>= 0.4.0),
-    teal.transform (>= 0.4.0),
     teal.widgets (>= 0.4.0),
     tern (>= 0.7.10),
-    tibble,
-    tidyr,
+    tibble (>= 2.0.0),
+    tidyr (>= 0.8.3),
     tidyselect,
     utils
 Suggests:
-    broom,
+    broom (>= 0.7.10),
     colourpicker,
     ggExtra,
     ggpmisc (>= 0.4.3),
@@ -57,22 +60,35 @@ Suggests:
     gridExtra,
     htmlwidgets,
     jsonlite,
-    knitr,
-    lattice,
+    knitr (>= 1.42),
+    lattice (>= 0.18-4),
     MASS,
     methods,
     nestcolor (>= 0.1.0),
-    rlang,
-    rmarkdown,
+    rlang (>= 1.0.0),
     rtables (>= 0.5.1),
     sparkline,
-    teal.data (>= 0.3.0),
-    testthat (>= 2.0)
+    teal.data (>= 0.3.0.9018),
+    testthat (>= 3.0.4)
 VignetteBuilder:
     knitr
+Config/Needs/verdepcheck: haleyjeppson/ggmosaic, tidyverse/ggplot2,
+    rstudio/shiny, shinyTree/shinyTree, insightsengineering/teal,
+    mllg/checkmate, tidyverse/dplyr, rstudio/DT, tidyverse/forcats,
+    daroczig/logger, tidyverse/magrittr, r-lib/scales, daattali/shinyjs,
+    rstudio/shinyvalidate, dreamRs/shinyWidgets, tidyverse/stringr,
+    insightsengineering/teal.code, insightsengineering/teal.logger,
+    insightsengineering/teal.reporter, insightsengineering/teal.transform,
+    insightsengineering/teal.widgets, insightsengineering/tern,
+    tidyverse/tibble, tidyverse/tidyr, r-lib/tidyselect, tidymodels/broom,
+    daattali/colourpicker, daattali/ggExtra, aphalo/ggpmisc, aphalo/ggpp,
+    baddstats/goftest, gridExtra, ramnathv/htmlwidgets, jeroen/jsonlite,
+    yihui/knitr, deepayan/lattice, MASS, insightsengineering/nestcolor,
+    r-lib/rlang, insightsengineering/rtables, sparkline,
+    insightsengineering/teal.data, r-lib/testthat
 Config/Needs/website: insightsengineering/nesttemplate
 Encoding: UTF-8
 Language: en-US
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
